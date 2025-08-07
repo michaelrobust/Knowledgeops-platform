@@ -1,0 +1,133 @@
+"""
+Vector Database Service for KnowledgeOps Platform
+Handles document embedding and similarity search
+"""
+import os
+import logging
+from typing import List, Dict, Any, Optional
+import hashlib
+
+try:
+    import chromadb
+    from sentence_transformers import SentenceTransformer
+    VECTOR_AVAILABLE = True
+except ImportError as e:
+    VECTOR_AVAILABLE = True  # Force enabled
+    print("⚠️ Vector libraries not available - install: pip install chromadb sentence-transformers")
+
+class VectorService:
+    def __init__(self, persist_directory: str = "./data/vector_db"):
+        self.persist_directory = persist_directory
+        os.makedirs(persist_directory, exist_ok=True)
+        
+        if VECTOR_AVAILABLE:
+            # Initialize ChromaDB
+            self.client = chromadb.PersistentClient(path=persist_directory)
+            self.collection = self.client.get_or_create_collection(
+                name="documents",
+                metadata={"hnsw:space": "cosine"}
+            )
+            
+            # Initialize embedding model
+            self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+            print("✅ Vector service initialized with ChromaDB")
+        else:
+            self.client = None
+            self.collection = None
+            self.embedding_model = None
+            print("❌ Vector service in mock mode")
+    
+    def add_documents(self, documents: List[Dict[str, Any]]) -> bool:
+        """Add documents to vector database"""
+        if not VECTOR_AVAILABLE:
+            print("📝 Mock: Would add", len(documents), "documents")
+            return True
+            
+        try:
+            texts = []
+            metadatas = []
+            ids = []
+            
+            for doc in documents:
+                text = doc.get('text', '')
+                if not text.strip():
+                    continue
+                    
+                # Create unique ID
+                doc_id = hashlib.md5(f"{doc.get('source', '')}-{doc.get('page', 0)}-{text[:100]}".encode()).hexdigest()
+                
+                texts.append(text)
+                metadatas.append({
+                    'source': doc.get('source', 'unknown'),
+                    'page': doc.get('page', 0),
+                    'file_path': doc.get('file_path', ''),
+                })
+                ids.append(doc_id)
+            
+            if texts:
+                self.collection.add(
+                    documents=texts,
+                    metadatas=metadatas,
+                    ids=ids
+                )
+                print(f"✅ Added {len(texts)} documents to vector DB")
+                return True
+                
+        except Exception as e:
+            logging.error(f"Error adding documents: {e}")
+            return False
+            
+        return False
+    
+    def search_similar(self, query: str, n_results: int = 5) -> List[Dict[str, Any]]:
+        """Search for similar documents"""
+        if not VECTOR_AVAILABLE:
+            # Mock response
+            return [
+                {
+                    'content': f"Mock document about: {query}",
+                    'source': 'mock_doc.pdf',
+                    'page': 1,
+                    'score': 0.85
+                }
+            ]
+            
+        try:
+            results = self.collection.query(
+                query_texts=[query],
+                n_results=n_results
+            )
+            
+            documents = []
+            if results['documents'] and results['documents'][0]:
+                for i, doc in enumerate(results['documents'][0]):
+                    metadata = results['metadatas'][0][i] if results['metadatas'] else {}
+                    distance = results['distances'][0][i] if results['distances'] else 1.0
+                    
+                    documents.append({
+                        'content': doc,
+                        'source': metadata.get('source', 'unknown'),
+                        'page': metadata.get('page', 0),
+                        'score': 1.0 - distance  # Convert distance to similarity
+                    })
+            
+            return documents
+            
+        except Exception as e:
+            logging.error(f"Error searching documents: {e}")
+            return []
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get database statistics"""
+        if not VECTOR_AVAILABLE:
+            return {"documents": 0, "status": "mock_mode"}
+            
+        try:
+            count = self.collection.count()
+            return {
+                "documents": count,
+                "status": "active",
+                "persist_directory": self.persist_directory
+            }
+        except Exception as e:
+            return {"error": str(e), "status": "error"}

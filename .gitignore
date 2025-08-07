@@ -1,0 +1,25 @@
+# 絕對不要上傳
+.env
+__pycache__/
+*.pyc
+venv/
+env/
+
+# 資料檔案
+data/
+*.db
+*.sqlite
+storage/*.pdf
+storage/*.docx
+
+# 日誌
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# 暫存檔
+*.tmp
+*.bak

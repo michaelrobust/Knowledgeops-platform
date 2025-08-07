@@ -1,0 +1,262 @@
+"""
+LLM Service - OpenAI Integration for KnowledgeOps Platform
+Handles AI-powered question answering using document context
+"""
+
+import os
+import json
+import logging
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+
+try:
+    import openai
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    print("⚠️ OpenAI library not available")
+
+try:
+    import tiktoken
+    TIKTOKEN_AVAILABLE = True
+except ImportError:
+    TIKTOKEN_AVAILABLE = False
+    print("⚠️ tiktoken library not available")
+
+logger = logging.getLogger(__name__)
+
+class LLMService:
+    """LLM service for AI-powered document question answering"""
+    
+    def __init__(self):
+        self.client = None
+        self.model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+        self.max_tokens = int(os.getenv("MAX_TOKENS", "1000"))
+        
+        # Initialize OpenAI client
+        if OPENAI_AVAILABLE:
+            api_key = os.getenv("OPENAI_API_KEY")
+            if api_key and api_key != "your_openai_api_key_here":
+                self.client = OpenAI(api_key=api_key)
+                logger.info(f"OpenAI client initialized with model: {self.model}")
+            else:
+                logger.warning("OpenAI API key not configured")
+        
+        # Initialize tokenizer for token counting
+        self.tokenizer = None
+        if TIKTOKEN_AVAILABLE:
+            try:
+                self.tokenizer = tiktoken.encoding_for_model(self.model)
+            except Exception as e:
+                logger.warning(f"Could not initialize tokenizer: {e}")
+    
+    def count_tokens(self, text: str) -> int:
+        """Count tokens in text"""
+        if self.tokenizer:
+            return len(self.tokenizer.encode(text))
+        else:
+            # Rough estimation: 1 token ≈ 4 characters
+            return len(text) // 4
+    
+    def search_relevant_documents(self, question: str, max_docs: int = 3) -> List[Dict[str, Any]]:
+    """
+    使用向量相似性搜尋取代關鍵字搜尋
+    Search for relevant documents using vector similarity search
+    """
+    try:
+        # 呼叫已建立的 vector_service
+        results = self.vector_service.search_documents(question, max_docs)
+        return results
+    except Exception as e:
+        print(f"Vector search failed: {e}")
+        return []
+
+        if not os.path.exists(parsed_dir):
+            return relevant_docs
+        
+        question_keywords = question.lower().split()
+        
+        for filename in os.listdir(parsed_dir):
+            if filename.endswith('.json') and not filename.endswith('_chunks.json'):
+                try:
+                    with open(os.path.join(parsed_dir, filename), 'r', encoding='utf-8') as f:
+                        doc_data = json.load(f)
+                        content = doc_data.get('content', '').lower()
+                        
+                        # Calculate relevance score (simple keyword matching)
+                        matches = sum(1 for keyword in question_keywords if keyword in content)
+                        if matches > 0:
+                            relevance_score = matches / len(question_keywords)
+                            
+                            # Get content snippet around matches
+                            snippet = self._get_relevant_snippet(content, question_keywords)
+                            
+                            relevant_docs.append({
+                                'filename': filename.replace('.json', ''),
+                                'content': doc_data.get('content', ''),
+                                'snippet': snippet,
+                                'relevance_score': relevance_score,
+                                'word_count': doc_data.get('word_count', 0)
+                            })
+                
+                except Exception as e:
+                    logger.error(f"Error reading document {filename}: {e}")
+        
+        # Sort by relevance score and return top documents
+        relevant_docs.sort(key=lambda x: x['relevance_score'], reverse=True)
+        return relevant_docs[:max_docs]
+    
+    def _get_relevant_snippet(self, content: str, keywords: List[str], max_length: int = 300) -> str:
+        """Extract relevant snippet from content around keywords"""
+        content_lower = content.lower()
+        best_position = 0
+        max_matches = 0
+        
+        # Find position with most keyword matches in a window
+        window_size = max_length
+        for i in range(0, len(content) - window_size, 50):
+            window = content_lower[i:i + window_size]
+            matches = sum(1 for keyword in keywords if keyword in window)
+            if matches > max_matches:
+                max_matches = matches
+                best_position = i
+        
+        snippet = content[best_position:best_position + window_size]
+        if best_position > 0:
+            snippet = "..." + snippet
+        if best_position + window_size < len(content):
+            snippet = snippet + "..."
+            
+        return snippet
+    
+    def generate_answer(self, question: str, context_docs: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Generate AI answer using OpenAI API with document context
+        """
+        start_time = datetime.now()
+        
+        if not self.client:
+            return self._fallback_response(question, "OpenAI API not configured")
+        
+        try:
+            # Prepare context from relevant documents
+            context = ""
+            sources = []
+            
+            if context_docs:
+                context_parts = []
+                for doc in context_docs:
+                    context_parts.append(f"Document: {doc['filename']}\nContent: {doc['content'][:1000]}...")
+                    sources.append({
+                        'filename': doc['filename'],
+                        'relevance_score': doc.get('relevance_score', 0),
+                        'snippet': doc.get('snippet', '')[:200] + "..."
+                    })
+                context = "\n\n".join(context_parts)
+            
+            # Prepare the prompt
+            if context:
+                prompt = f"""Based on the following documents, please answer the question. If the answer is not in the documents, please say so.
+
+Documents:
+{context}
+
+Question: {question}
+
+Please provide a helpful and accurate answer based on the document content."""
+            else:
+                prompt = f"""I don't have any relevant documents to answer this question. 
+
+Question: {question}
+
+Please let me know if you'd like to upload some documents first, and I'll be happy to help answer questions based on their content."""
+            
+            # Count tokens
+            prompt_tokens = self.count_tokens(prompt)
+            
+            # Make OpenAI API call
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are a helpful AI assistant that answers questions based on provided documents. Be accurate and cite specific information when possible."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=self.max_tokens,
+                temperature=0.1  # Low temperature for more factual responses
+            )
+            
+            # Extract response
+            answer = response.choices[0].message.content
+            completion_tokens = response.usage.completion_tokens
+            total_tokens = response.usage.total_tokens
+            
+            processing_time = (datetime.now() - start_time).total_seconds()
+            
+            return {
+                'answer': answer,
+                'sources': sources,
+                'model': self.model,
+                'tokens_used': {
+                    'prompt_tokens': prompt_tokens,
+                    'completion_tokens': completion_tokens,
+                    'total_tokens': total_tokens
+                },
+                'processing_time': processing_time,
+                'has_context': len(sources) > 0,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"OpenAI API error: {str(e)}")
+            return self._fallback_response(question, f"AI service error: {str(e)}")
+    
+    def _fallback_response(self, question: str, error_msg: str) -> Dict[str, Any]:
+        """Generate fallback response when AI service is unavailable"""
+        return {
+            'answer': f"I apologize, but I'm currently unable to process your question due to: {error_msg}\n\nYour question was: '{question}'\n\nPlease check the API configuration or try again later.",
+            'sources': [],
+            'model': 'fallback',
+            'tokens_used': {'total_tokens': 0},
+            'processing_time': 0.1,
+            'has_context': False,
+            'error': error_msg,
+            'timestamp': datetime.now().isoformat()
+        }
+    
+    def query_documents(self, question: str) -> Dict[str, Any]:
+        """
+        Main method to query documents and generate AI response
+        """
+        if not question or not question.strip():
+            return self._fallback_response(question, "Empty question provided")
+        
+        logger.info(f"Processing query: {question[:50]}...")
+        
+        # Search for relevant documents
+        relevant_docs = self.search_relevant_documents(question)
+        
+        # Generate AI response
+        result = self.generate_answer(question, relevant_docs)
+        
+        # Add query metadata
+        result.update({
+            'question': question,
+            'documents_searched': len(os.listdir("storage/parsed")) if os.path.exists("storage/parsed") else 0,
+            'relevant_documents_found': len(relevant_docs),
+            'search_method': 'keyword_matching'  # TODO: Update when vector search is implemented
+        })
+        
+        return result
+
+# Convenience functions
+def query_with_ai(question: str) -> Dict[str, Any]:
+    """Query documents using AI"""
+    llm_service = LLMService()
+    return llm_service.query_documents(question)
+
+def check_ai_availability() -> bool:
+    """Check if AI service is properly configured"""
+    return (OPENAI_AVAILABLE and 
+            os.getenv("OPENAI_API_KEY") and 
+            os.getenv("OPENAI_API_KEY") != "your_openai_api_key_here")

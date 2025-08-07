@@ -1,0 +1,411 @@
+"""
+KnowledgeOps Platform - Main Application
+Enterprise-grade GPT-driven Knowledge Operations Platform
+"""
+
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import uvicorn
+import os
+from datetime import datetime
+import shutil
+import json
+
+# Import our document parser
+from services.document_parser import DocumentParser, parse_document
+
+# Create FastAPI application
+app = FastAPI(
+    title="KnowledgeOps Platform",
+    description="Enterprise-grade GPT-driven Knowledge Operations Platform with Document Processing",
+    version="1.1.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Restrict to specific domains in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Ensure required directories exist
+os.makedirs("storage/uploads", exist_ok=True)
+os.makedirs("storage/logs", exist_ok=True)
+os.makedirs("storage/vector_db", exist_ok=True)
+os.makedirs("storage/parsed", exist_ok=True)
+
+# Initialize document parser
+document_parser = DocumentParser()
+
+@app.get("/")
+async def root():
+    """Root endpoint - System status and welcome message"""
+    return {
+        "message": "🚀 KnowledgeOps Platform is running!",
+        "version": "1.1.0",
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "features": {
+            "document_parsing": "✅ Enabled",
+            "supported_formats": [".pdf", ".docx", ".txt"],
+            "chunking": "✅ Enabled",
+            "ai_query": "🔄 Coming soon"
+        },
+        "endpoints": {
+            "api_docs": "/docs",
+            "health": "/health",
+            "upload": "/documents/upload",
+            "query": "/query",
+            "list_docs": "/documents",
+            "parse_status": "/documents/{filename}/parse"
+        }
+    }
+
+@app.get("/health")
+async def health_check():
+    """System health check endpoint"""
+    try:
+        checks = {
+            "api": "running",
+            "storage": "available" if os.path.exists("storage") else "unavailable",
+            "uploads": "available" if os.path.exists("storage/uploads") else "unavailable",
+            "vector_db": "available" if os.path.exists("storage/vector_db") else "unavailable",
+            "document_parser": "available"
+        }
+        
+        status = "healthy" if all(v == "available" or v == "running" for v in checks.values()) else "degraded"
+        
+        return {
+            "status": status,
+            "timestamp": datetime.now().isoformat(),
+            "checks": checks,
+            "parser_formats": list(document_parser.supported_types.keys())
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+        )
+
+@app.post("/documents/upload")
+async def upload_document(file: UploadFile = File(...)):
+    """
+    Document upload endpoint with automatic parsing
+    Supports PDF, DOCX, TXT formats
+    """
+    try:
+        # Check file type
+        allowed_types = [
+            "application/pdf", 
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "text/plain"
+        ]
+        
+        if file.content_type not in allowed_types:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Unsupported file type: {file.content_type}. Supported formats: PDF, DOCX, TXT"
+            )
+        
+        # Check file size (50MB limit)
+        content = await file.read()
+        file_size = len(content)
+        max_size = 50 * 1024 * 1024  # 50MB
+        
+        if file_size > max_size:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large: {file_size / 1024 / 1024:.1f}MB (limit: 50MB)"
+            )
+        
+        # Save file
+        file_path = f"storage/uploads/{file.filename}"
+        with open(file_path, "wb") as buffer:
+            buffer.write(content)
+        
+        print(f"📄 File uploaded: {file.filename} ({file_size / 1024:.1f}KB)")
+        
+        # Parse the document
+        try:
+            print(f"🔍 Parsing document: {file.filename}")
+            parse_result = parse_document(file_path)
+            
+            # Save parsed content as JSON
+            parsed_file_path = f"storage/parsed/{file.filename}.json"
+            with open(parsed_file_path, 'w', encoding='utf-8') as f:
+                json.dump(parse_result, f, ensure_ascii=False, indent=2)
+            
+            # Create chunks
+            chunks = document_parser.chunk_text(parse_result['content'], chunk_size=1000, overlap=200)
+            chunks_file_path = f"storage/parsed/{file.filename}_chunks.json"
+            with open(chunks_file_path, 'w', encoding='utf-8') as f:
+                json.dump(chunks, f, ensure_ascii=False, indent=2)
+            
+            parsing_success = True
+            parsing_info = {
+                "word_count": parse_result.get('word_count', 0),
+                "char_count": parse_result.get('char_count', 0),
+                "chunks_created": len(chunks),
+                "extraction_method": parse_result.get('extraction_method', 'unknown'),
+                "parsed_file": parsed_file_path,
+                "chunks_file": chunks_file_path
+            }
+            
+            print(f"✅ Parsing completed: {parse_result.get('word_count', 0)} words, {len(chunks)} chunks")
+            
+        except Exception as parse_error:
+            print(f"❌ Parsing failed: {str(parse_error)}")
+            parsing_success = False
+            parsing_info = {
+                "error": str(parse_error),
+                "chunks_created": 0
+            }
+        
+        return {
+            "message": "File uploaded and processed successfully!",
+            "filename": file.filename,
+            "path": file_path,
+            "size": file_size,
+            "size_mb": round(file_size / 1024 / 1024, 2),
+            "type": file.content_type,
+            "timestamp": datetime.now().isoformat(),
+            "parsing": {
+                "success": parsing_success,
+                **parsing_info
+            }
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+@app.get("/documents/{filename}/parse")
+async def get_parse_status(filename: str):
+    """Get parsing status and results for a specific document"""
+    try:
+        # Check if original file exists
+        file_path = f"storage/uploads/{filename}"
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        # Check if parsed file exists
+        parsed_file_path = f"storage/parsed/{filename}.json"
+        chunks_file_path = f"storage/parsed/{filename}_chunks.json"
+        
+        if not os.path.exists(parsed_file_path):
+            return {
+                "filename": filename,
+                "parsed": False,
+                "message": "File not yet parsed"
+            }
+        
+        # Load parsed content
+        with open(parsed_file_path, 'r', encoding='utf-8') as f:
+            parsed_content = json.load(f)
+        
+        # Load chunks if available
+        chunks_info = {}
+        if os.path.exists(chunks_file_path):
+            with open(chunks_file_path, 'r', encoding='utf-8') as f:
+                chunks = json.load(f)
+                chunks_info = {
+                    "total_chunks": len(chunks),
+                    "avg_chunk_size": sum(chunk['length'] for chunk in chunks) / len(chunks) if chunks else 0,
+                    "sample_chunk": chunks[0]['text'][:100] + "..." if chunks else None
+                }
+        
+        return {
+            "filename": filename,
+            "parsed": True,
+            "content_preview": parsed_content.get('content', '')[:200] + "...",
+            "word_count": parsed_content.get('word_count', 0),
+            "char_count": parsed_content.get('char_count', 0),
+            "file_type": parsed_content.get('file_type', 'unknown'),
+            "extraction_method": parsed_content.get('extraction_method', 'unknown'),
+            "chunks": chunks_info,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Parse status check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Parse status check failed: {str(e)}")
+
+@app.post("/query")
+async def query_documents(
+    question: str = Form(...),
+    model: str = Form(default="gpt-3.5-turbo")
+):
+    """
+    Document query endpoint with basic keyword search
+    Enhanced RAG functionality coming soon
+    """
+    try:
+        if not question.strip():
+            raise HTTPException(status_code=400, detail="Query cannot be empty")
+        
+        print(f"🔍 Query received: {question[:50]}...")
+        
+        # Basic keyword search in parsed documents
+        search_results = []
+        parsed_dir = "storage/parsed"
+        
+        if os.path.exists(parsed_dir):
+            for filename in os.listdir(parsed_dir):
+                if filename.endswith('.json') and not filename.endswith('_chunks.json'):
+                    try:
+                        with open(os.path.join(parsed_dir, filename), 'r', encoding='utf-8') as f:
+                            doc_data = json.load(f)
+                            content = doc_data.get('content', '').lower()
+                            if any(keyword.lower() in content for keyword in question.split()):
+                                search_results.append({
+                                    "filename": filename.replace('.json', ''),
+                                    "relevance": "keyword_match",
+                                    "snippet": doc_data.get('content', '')[:200] + "..."
+                                })
+                    except Exception as e:
+                        print(f"Error searching in {filename}: {e}")
+        
+        # Generate response
+        if search_results:
+            sources_text = "\n".join([f"- {result['filename']}: {result['snippet']}" for result in search_results[:3]])
+            answer = f"Based on the uploaded documents, I found relevant information:\n\n{sources_text}\n\nNote: This is basic keyword matching. Full semantic search and AI-powered responses coming soon!"
+        else:
+            answer = f"You asked: \"{question}\"\n\nI searched through your uploaded documents but didn't find specific matches. This could be because:\n1. No documents contain these keywords\n2. Documents haven't been uploaded yet\n3. More advanced semantic search is needed\n\nFull RAG functionality with semantic search coming soon!"
+        
+        response = {
+            "question": question,
+            "answer": answer,
+            "model": model,
+            "sources": search_results,
+            "search_method": "keyword_matching",
+            "documents_searched": len([f for f in os.listdir(parsed_dir) if f.endswith('.json') and not f.endswith('_chunks.json')]) if os.path.exists(parsed_dir) else 0,
+            "tokens_used": 0,
+            "processing_time": 0.1,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        return response
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Query failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
+
+@app.get("/documents")
+async def list_documents():
+    """List uploaded documents with parsing status"""
+    try:
+        upload_dir = "storage/uploads"
+        parsed_dir = "storage/parsed"
+        
+        if not os.path.exists(upload_dir):
+            return {"count": 0, "documents": []}
+        
+        documents = []
+        for filename in os.listdir(upload_dir):
+            if not filename.startswith('.'):
+                file_path = os.path.join(upload_dir, filename)
+                stat = os.stat(file_path)
+                
+                # Check parsing status
+                parsed_file = os.path.join(parsed_dir, f"{filename}.json")
+                chunks_file = os.path.join(parsed_dir, f"{filename}_chunks.json")
+                
+                parsing_status = {
+                    "parsed": os.path.exists(parsed_file),
+                    "chunked": os.path.exists(chunks_file)
+                }
+                
+                if parsing_status["parsed"]:
+                    try:
+                        with open(parsed_file, 'r', encoding='utf-8') as f:
+                            parsed_data = json.load(f)
+                            parsing_status.update({
+                                "word_count": parsed_data.get('word_count', 0),
+                                "char_count": parsed_data.get('char_count', 0)
+                            })
+                    except:
+                        pass
+                
+                documents.append({
+                    "filename": filename,
+                    "size": stat.st_size,
+                    "size_mb": round(stat.st_size / 1024 / 1024, 2),
+                    "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                    "path": file_path,
+                    "parsing": parsing_status
+                })
+        
+        # Sort by modification time (newest first)
+        documents.sort(key=lambda x: x["modified"], reverse=True)
+        
+        return {
+            "count": len(documents),
+            "documents": documents,
+            "parsed_count": sum(1 for doc in documents if doc["parsing"]["parsed"])
+        }
+    
+    except Exception as e:
+        print(f"❌ Failed to list documents: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to list documents: {str(e)}")
+
+@app.delete("/documents/{filename}")
+async def delete_document(filename: str):
+    """Delete specified document and its parsed data"""
+    try:
+        file_path = f"storage/uploads/{filename}"
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        # Delete original file
+        os.remove(file_path)
+        
+        # Delete parsed files if they exist
+        parsed_file = f"storage/parsed/{filename}.json"
+        chunks_file = f"storage/parsed/{filename}_chunks.json"
+        
+        if os.path.exists(parsed_file):
+            os.remove(parsed_file)
+        if os.path.exists(chunks_file):
+            os.remove(chunks_file)
+        
+        print(f"🗑️ File and parsed data deleted: {filename}")
+        
+        return {
+            "message": f"File {filename} and all associated data deleted successfully",
+            "timestamp": datetime.now().isoformat()
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Delete failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Delete failed: {str(e)}")
+
+if __name__ == "__main__":
+    print("🚀 Starting KnowledgeOps Platform with Document Processing...")
+    print("📖 API Documentation: http://localhost:8000/docs")
+    print("🔍 Health Check: http://localhost:8000/health")
+    print("📁 File Upload: http://localhost:8000/docs#/default/upload_document_documents_upload_post")
+    print("📄 Document Processing: Enabled (PDF, DOCX, TXT)")
+    
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True
+    )

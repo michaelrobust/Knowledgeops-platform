@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📘 KnowledgeOps Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            height: 100vh;
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+
+        .main-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .input-container {
+            padding: 20px;
+            border-top: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 0 0 20px 20px;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            border-radius: 15px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: auto;
+            max-width: 70%;
+        }
+
+        .assistant-message {
+            background: #f3f4f6;
+            color: #1f2937;
+            max-width: 70%;
+        }
+
+        .input-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .submit-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .document-list {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .document-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #f9fafb;
+            border-radius: 10px;
+            transition: background 0.2s;
+        }
+
+        .document-item:hover {
+            background: #f3f4f6;
+        }
+
+        .upload-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px;
+        }
+
+        .upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f9fafb;
+        }
+
+        .upload-area.drag-active {
+            border-color: #667eea !important;
+            background: #ede9fe !important;
+            transform: scale(1.02);
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .file-item:hover {
+            transform: translateX(2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .notification {
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .btn-upload-all {
+            padding: 10px 25px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-upload-all:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-upload-all:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-clear {
+            padding: 10px 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: white;
+            color: #4b5563;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-clear:hover {
+            background: #f9fafb;
+            border-color: #d1d5db;
+        }
+
+        .file-list-container {
+            margin-top: 20px;
+        }
+
+        .file-controls {
+            margin-top: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h2 style="font-size: 24px; font-weight: bold; margin-bottom: 25px; color: #1f2937;">
+                📘 KnowledgeOps
+            </h2>
+            
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="docCount">0</div>
+                    <div class="stat-label">Documents</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="chunkCount">0</div>
+                    <div class="stat-label">Chunks</div>
+                </div>
+            </div>
+
+            <!-- Document List -->
+            <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 15px; color: #4b5563;">
+                📁 Documents
+            </h3>
+            <div class="document-list" id="documentList">
+                <p style="color: #9ca3af; text-align: center;">No documents uploaded</p>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <h1 style="font-size: 32px; font-weight: bold; margin-bottom: 10px;">
+                    🚀 KnowledgeOps Platform
+                </h1>
+                <p style="opacity: 0.9;">RAG-Powered Knowledge Management System</p>
+            </div>
+
+            <!-- Batch Upload Section -->
+            <div class="upload-section">
+                <h2 style="font-size: 20px; font-weight: bold; margin-bottom: 16px; display: flex; align-items: center;">
+                    📤 Batch Document Upload
+                </h2>
+                
+                <div id="dropZone" class="upload-area">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📁</div>
+                    <p style="font-size: 18px; font-weight: 500; color: #4b5563; margin-bottom: 8px;">
+                        Drag & drop files here or click to browse
+                    </p>
+                    <p style="font-size: 14px; color: #6b7280;">
+                        Supports PDF, Word, TXT (multiple files)
+                    </p>
+                    <input type="file" id="fileInput" multiple accept=".pdf,.txt,.docx,.doc,.md" style="display: none;">
+                    <button onclick="document.getElementById('fileInput').click()" 
+                            style="margin-top: 16px; padding: 10px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                        Select Files
+                    </button>
+                </div>
+                
+                <div id="fileList" class="file-list-container">
+                    <!-- Files will be displayed here -->
+                </div>
+            </div>
+
+            <!-- Chat Container -->
+            <div class="chat-container" id="chatContainer">
+                <div class="assistant-message message">
+                    <strong>🤖 Assistant:</strong>
+                    <p>Hello! I'm your KnowledgeOps assistant. Upload documents and ask me questions about them!</p>
+                </div>
+            </div>
+
+            <!-- Input Container -->
+            <div class="input-container">
+                <form class="input-form" id="queryForm">
+                    <input 
+                        type="text" 
+                        class="input-field" 
+                        id="queryInput"
+                        placeholder="Ask a question about your documents..."
+                        autocomplete="off"
+                    >
+                    <button type="submit" class="submit-btn" id="submitBtn">
+                        Send
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Batch Upload Handler
+        class BatchUploader {
+            constructor() {
+                this.files = [];
+                this.isUploading = false;
+            }
+
+            init() {
+                const dropZone = document.getElementById('dropZone');
+                const fileInput = document.getElementById('fileInput');
+                
+                if (!dropZone || !fileInput) {
+                    console.error('Required elements not found');
+                    return;
+                }
+
+                // Prevent default drag behaviors
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    dropZone.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }, false);
+                });
+
+                // Highlight drop zone
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    dropZone.addEventListener(eventName, () => {
+                        dropZone.classList.add('drag-active');
+                    });
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    dropZone.addEventListener(eventName, () => {
+                        dropZone.classList.remove('drag-active');
+                    });
+                });
+
+                // Handle dropped files
+                dropZone.addEventListener('drop', (e) => {
+                    const files = e.dataTransfer.files;
+                    this.handleFiles(files);
+                });
+
+                // Handle file input change
+                fileInput.addEventListener('change', (e) => {
+                    this.handleFiles(e.target.files);
+                });
+            }
+
+            handleFiles(fileList) {
+                if (!fileList || fileList.length === 0) return;
+                
+                const validExtensions = ['pdf', 'txt', 'docx', 'doc', 'md'];
+                const newFiles = Array.from(fileList).filter(file => {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    const isValid = validExtensions.includes(ext);
+                    if (!isValid) {
+                        this.showNotification(`${file.name} is not supported`, 'error');
+                    }
+                    return isValid;
+                });
+
+                this.files = [...this.files, ...newFiles];
+                this.renderFileList();
+            }
+
+            renderFileList() {
+                const container = document.getElementById('fileList');
+                
+                if (this.files.length === 0) {
+                    container.innerHTML = '';
+                    return;
+                }
+
+                const filesHtml = this.files.map((file, index) => `
+                    <div class="file-item" id="file-${index}">
+                        <span style="font-size: 24px; margin-right: 12px;">📄</span>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; color: #1f2937;">${file.name}</div>
+                            <div style="font-size: 14px; color: #6b7280;">${(file.size / 1024).toFixed(2)} KB</div>
+                        </div>
+                        <div id="status-${index}" style="margin-right: 12px;"></div>
+                        <button onclick="batchUploader.removeFile(${index})" 
+                                style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 20px;">
+                            ❌
+                        </button>
+                    </div>
+                `).join('');
+
+                const controlsHtml = `
+                    <div class="file-controls">
+                        <div style="font-size: 14px; color: #6b7280;">
+                            ${this.files.length} file(s) • ${(this.files.reduce((a, f) => a + f.size, 0) / 1024).toFixed(2)} KB
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="batchUploader.clearAll()" class="btn-clear">
+                                Clear All
+                            </button>
+                            <button onclick="batchUploader.uploadAll()" 
+                                    class="btn-upload-all" 
+                                    ${this.isUploading ? 'disabled' : ''}>
+                                ${this.isUploading ? '⏳ Uploading...' : '⬆️ Upload All'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                container.innerHTML = filesHtml + controlsHtml;
+            }
+
+            removeFile(index) {
+                this.files.splice(index, 1);
+                this.renderFileList();
+            }
+
+            clearAll() {
+                this.files = [];
+                this.renderFileList();
+            }
+
+            async uploadAll() {
+                if (this.files.length === 0 || this.isUploading) return;
+
+                this.isUploading = true;
+                this.renderFileList();
+
+                const formData = new FormData();
+                this.files.forEach(file => {
+                    formData.append('files', file);
+                });
+
+                // Update status indicators
+                this.files.forEach((_, index) => {
+                    const statusEl = document.getElementById(`status-${index}`);
+                    if (statusEl) {
+                        statusEl.innerHTML = '<span style="color: #3b82f6;">⏳</span>';
+                    }
+                });
+
+                try {
+                    const response = await fetch('http://localhost:8000/upload-batch', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        // Update status for each file
+                        result.results.forEach((fileResult, index) => {
+                            const statusEl = document.getElementById(`status-${index}`);
+                            if (statusEl) {
+                                if (fileResult.status === 'success') {
+                                    statusEl.innerHTML = `<span style="color: #10b981;">✅</span>`;
+                                } else {
+                                    statusEl.innerHTML = `<span style="color: #ef4444;">❌</span>`;
+                                }
+                            }
+                        });
+
+                        const successCount = result.results.filter(r => r.status === 'success').length;
+                        this.showNotification(
+                            `Uploaded ${successCount}/${this.files.length} files successfully!`,
+                            successCount === this.files.length ? 'success' : 'warning'
+                        );
+
+                        // Remove successful files after delay
+                        setTimeout(() => {
+                            this.files = this.files.filter((_, i) => 
+                                result.results[i]?.status !== 'success'
+                            );
+                            this.renderFileList();
+                            loadDocuments();
+                        }, 2000);
+                    } else {
+                        this.showNotification('Upload failed: ' + (result.detail || 'Unknown error'), 'error');
+                    }
+                } catch (error) {
+                    this.showNotification('Upload failed: ' + error.message, 'error');
+                } finally {
+                    this.isUploading = false;
+                    this.renderFileList();
+                }
+            }
+
+            showNotification(message, type = 'info') {
+                const colors = {
+                    success: '#10b981',
+                    error: '#ef4444',
+                    warning: '#f59e0b',
+                    info: '#3b82f6'
+                };
+
+                const notification = document.createElement('div');
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 16px 20px;
+                    background: ${colors[type]};
+                    color: white;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    z-index: 10000;
+                    animation: slideIn 0.3s ease;
+                    max-width: 400px;
+                `;
+                
+                notification.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+                        <span>${message}</span>
+                    </div>
+                `;
+                
+                document.body.appendChild(notification);
+                setTimeout(() => notification.remove(), 5000);
+            }
+        }
+
+        // Initialize
+        const batchUploader = new BatchUploader();
+        const API_URL = 'http://localhost:8000';
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            batchUploader.init();
+            loadHealth();
+            loadDocuments();
+        });
+
+        // API Functions
+        async function loadHealth() {
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                document.getElementById('docCount').textContent = data.documents_count || 0;
+                document.getElementById('chunkCount').textContent = data.vectors_count || 0;
+            } catch (error) {
+                console.error('Error loading health:', error);
+            }
+        }
+
+        async function loadDocuments() {
+            try {
+                const response = await fetch(`${API_URL}/documents`);
+                const documents = await response.json();
+                
+                const listEl = document.getElementById('documentList');
+                if (documents.length === 0) {
+                    listEl.innerHTML = '<p style="color: #9ca3af; text-align: center;">No documents uploaded</p>';
+                } else {
+                    listEl.innerHTML = documents.map(doc => `
+                        <div class="document-item">
+                            <div>
+                                <div style="font-weight: 600;">📄 ${doc.filename}</div>
+                                <div style="font-size: 12px; color: #9ca3af;">
+                                    ${doc.chunks} chunks • ${(doc.file_size / 1024).toFixed(1)} KB
+                                </div>
+                            </div>
+                            <span style="padding: 4px 8px; background: ${doc.status === 'indexed' ? '#10b981' : '#fbbf24'}; 
+                                       color: white; border-radius: 6px; font-size: 12px;">
+                                ${doc.status}
+                            </span>
+                        </div>
+                    `).join('');
+                }
+                loadHealth();
+            } catch (error) {
+                console.error('Error loading documents:', error);
+            }
+        }
+
+        // Chat functionality
+        document.getElementById('queryForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const input = document.getElementById('queryInput');
+            const query = input.value.trim();
+            if (!query) return;
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const chatContainer = document.getElementById('chatContainer');
+            
+            // Add user message
+            chatContainer.innerHTML += `
+                <div class="user-message message">
+                    <strong>👤 You:</strong>
+                    <p>${query}</p>
+                </div>
+            `;
+            
+            input.value = '';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Thinking...';
+            
+            try {
+                const response = await fetch(`${API_URL}/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: query, max_results: 5 })
+                });
+                
+                const data = await response.json();
+                
+                chatContainer.innerHTML += `
+                    <div class="assistant-message message">
+                        <strong>🤖 Assistant:</strong>
+                        <p>${data.answer}</p>
+                        ${data.sources && data.sources.length > 0 ? `
+                            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+                                <small style="color: #6b7280;">📚 Sources: ${data.sources.length} documents</small>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            } catch (error) {
+                console.error('Error:', error);
+                chatContainer.innerHTML += `
+                    <div class="assistant-message message">
+                        <strong>🤖 Assistant:</strong>
+                        <p style="color: #ef4444;">Sorry, an error occurred. Please try again.</p>
+                    </div>
+                `;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Send';
+            }
+        });
+
+        // Auto-refresh
+        setInterval(loadDocuments, 30000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📘 KnowledgeOps Platform - With Memory</title>
+    <style>
+        /* 複製你原有的所有 CSS 樣式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            height: 100vh;
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+
+        .main-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px 20px 0 0;
+            position: relative;
+        }
+
+        /* 新增：對話控制按鈕樣式 */
+        .conversation-controls {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .control-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .input-container {
+            padding: 20px;
+            border-top: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 0 0 20px 20px;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            border-radius: 15px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: auto;
+            max-width: 70%;
+        }
+
+        .assistant-message {
+            background: #f3f4f6;
+            color: #1f2937;
+            max-width: 70%;
+        }
+
+        .system-message {
+            background: #fef3c7;
+            color: #92400e;
+            text-align: center;
+            font-size: 14px;
+            padding: 10px;
+            border-radius: 10px;
+            margin: 20px auto;
+            max-width: 50%;
+        }
+
+        .input-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .submit-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .document-list {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .document-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #f9fafb;
+            border-radius: 10px;
+            transition: background 0.2s;
+        }
+
+        .document-item:hover {
+            background: #f3f4f6;
+        }
+
+        /* 新增：對話歷史樣式 */
+        .conversation-info {
+            background: #e0e7ff;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .memory-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #10b981;
+            color: white;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h2 style="font-size: 24px; font-weight: bold; margin-bottom: 25px; color: #1f2937;">
+                📘 KnowledgeOps
+            </h2>
+            
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="docCount">0</div>
+                    <div class="stat-label">Documents</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="chunkCount">0</div>
+                    <div class="stat-label">Chunks</div>
+                </div>
+            </div>
+
+            <!-- 新增：對話統計 -->
+            <div class="conversation-info">
+                <strong>Conversation Memory</strong>
+                <div style="margin-top: 8px;">
+                    <div>Session Messages: <span id="sessionMessages">0</span></div>
+                    <div>Total Messages: <span id="totalMessages">0</span></div>
+                    <div>Context Size: <span id="contextSize">0</span> tokens</div>
+                </div>
+            </div>
+
+            <!-- Document List -->
+            <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 15px; color: #4b5563;">
+                📁 Documents
+            </h3>
+            <div class="document-list" id="documentList">
+                <p style="color: #9ca3af; text-align: center;">No documents uploaded</p>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header with Controls -->
+            <div class="header">
+                <h1 style="font-size: 32px; font-weight: bold; margin-bottom: 10px;">
+                    🚀 KnowledgeOps Platform
+                    <span class="memory-indicator">With Memory</span>
+                </h1>
+                <p style="opacity: 0.9;">RAG-Powered Knowledge Management System</p>
+                
+                <!-- 新增：對話控制按鈕 -->
+                <div class="conversation-controls">
+                    <button class="control-btn" onclick="conversationMemory.newSession()">
+                        🆕 New Session
+                    </button>
+                    <button class="control-btn" onclick="conversationMemory.clearAll()">
+                        🗑️ Clear History
+                    </button>
+                    <button class="control-btn" onclick="conversationMemory.exportHistory()">
+                        💾 Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat Container -->
+            <div class="chat-container" id="chatContainer">
+                <div class="assistant-message message">
+                    <strong>🤖 Assistant:</strong>
+                    <p>Hello! I'm your KnowledgeOps assistant with conversation memory. I'll remember our conversation context!</p>
+                </div>
+            </div>
+
+            <!-- Input Container -->
+            <div class="input-container">
+                <form class="input-form" id="queryForm">
+                    <input 
+                        type="text" 
+                        class="input-field" 
+                        id="queryInput"
+                        placeholder="Ask a question about your documents..."
+                        autocomplete="off"
+                    >
+                    <button type="submit" class="submit-btn" id="submitBtn">
+                        Send
+                    </button>
+                </form>
+                <div style="margin-top: 10px; font-size: 12px; color: #6b7280;">
+                    💡 Tip: I remember our conversation context for better answers!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== CONVERSATION MEMORY SYSTEM =====
+        class ConversationMemory {
+            constructor() {
+                // 從 LocalStorage 載入歷史
+                this.loadFromStorage();
+                this.maxContextMessages = 10; // 保留最近 10 條訊息作為上下文
+                this.updateStats();
+            }
+
+            loadFromStorage() {
+                const stored = localStorage.getItem('knowledgeops_conversations');
+                if (stored) {
+                    const data = JSON.parse(stored);
+                    this.conversations = data.conversations || [];
+                    this.currentSession = data.currentSession || this.generateSessionId();
+                } else {
+                    this.conversations = [];
+                    this.currentSession = this.generateSessionId();
+                }
+            }
+
+            saveToStorage() {
+                const data = {
+                    conversations: this.conversations,
+                    currentSession: this.currentSession,
+                    lastUpdated: new Date().toISOString()
+                };
+                localStorage.setItem('knowledgeops_conversations', JSON.stringify(data));
+            }
+
+            generateSessionId() {
+                return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            }
+
+            addMessage(role, content, metadata = {}) {
+                const message = {
+                    id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    session: this.currentSession,
+                    role: role,
+                    content: content,
+                    timestamp: new Date().toISOString(),
+                    metadata: metadata
+                };
+
+                this.conversations.push(message);
+                this.saveToStorage();
+                this.updateStats();
+                
+                console.log(`📝 Message saved: ${role} - ${content.substring(0, 50)}...`);
+                return message;
+            }
+
+            getSessionMessages() {
+                return this.conversations.filter(msg => msg.session === this.currentSession);
+            }
+
+            getRecentContext(n = null) {
+                const sessionMessages = this.getSessionMessages();
+                const limit = n || this.maxContextMessages;
+                return sessionMessages.slice(-limit);
+            }
+
+            getContextForAPI() {
+                // 準備發送給 API 的上下文
+                const recentMessages = this.getRecentContext();
+                return recentMessages.map(msg => ({
+                    role: msg.role,
+                    content: msg.content
+                }));
+            }
+
+            newSession() {
+                if (confirm('Start a new conversation session? Current session will be saved.')) {
+                    // 添加分隔訊息
+                    this.addSystemMessage('--- New Session Started ---');
+                    
+                    this.currentSession = this.generateSessionId();
+                    this.saveToStorage();
+                    
+                    // 清空聊天顯示
+                    document.getElementById('chatContainer').innerHTML = `
+                        <div class="system-message">
+                            🆕 New session started
+                        </div>
+                        <div class="assistant-message message">
+                            <strong>🤖 Assistant:</strong>
+                            <p>New conversation started! How can I help you?</p>
+                        </div>
+                    `;
+                    
+                    this.updateStats();
+                    this.showNotification('New session started', 'success');
+                }
+            }
+
+            clearAll() {
+                if (confirm('Clear all conversation history? This cannot be undone.')) {
+                    this.conversations = [];
+                    this.currentSession = this.generateSessionId();
+                    this.saveToStorage();
+                    
+                    document.getElementById('chatContainer').innerHTML = `
+                        <div class="system-message">
+                            🗑️ History cleared
+                        </div>
+                        <div class="assistant-message message">
+                            <strong>🤖 Assistant:</strong>
+                            <p>Conversation history cleared. Starting fresh!</p>
+                        </div>
+                    `;
+                    
+                    this.updateStats();
+                    this.showNotification('History cleared', 'info');
+                }
+            }
+
+            exportHistory() {
+                const exportData = {
+                    exported_at: new Date().toISOString(),
+                    total_messages: this.conversations.length,
+                    sessions: this.groupMessagesBySessions(),
+                    current_session: this.currentSession
+                };
+
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+                    type: 'application/json'
+                });
+                
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `knowledgeops_conversation_${Date.now()}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                this.showNotification('Conversation exported successfully', 'success');
+            }
+
+            groupMessagesBySessions() {
+                const sessions = {};
+                this.conversations.forEach(msg => {
+                    if (!sessions[msg.session]) {
+                        sessions[msg.session] = [];
+                    }
+                    sessions[msg.session].push(msg);
+                });
+                return sessions;
+            }
+
+            addSystemMessage(content) {
+                const chatContainer = document.getElementById('chatContainer');
+                chatContainer.innerHTML += `
+                    <div class="system-message">
+                        ${content}
+                    </div>
+                `;
+            }
+
+            updateStats() {
+                const sessionMessages = this.getSessionMessages();
+                const totalMessages = this.conversations.length;
+                
+                // 估算 context size (大約計算)
+                const contextMessages = this.getRecentContext();
+                const contextSize = contextMessages.reduce((total, msg) => {
+                    return total + msg.content.length;
+                }, 0);
+                const estimatedTokens = Math.floor(contextSize / 4); // 粗略估算
+
+                // 更新顯示
+                document.getElementById('sessionMessages').textContent = sessionMessages.length;
+                document.getElementById('totalMessages').textContent = totalMessages;
+                document.getElementById('contextSize').textContent = estimatedTokens;
+            }
+
+            showNotification(message, type = 'info') {
+                const colors = {
+                    success: '#10b981',
+                    error: '#ef4444',
+                    info: '#3b82f6'
+                };
+
+                const notification = document.createElement('div');
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 16px 20px;
+                    background: ${colors[type]};
+                    color: white;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    z-index: 10000;
+                    animation: slideIn 0.3s ease;
+                `;
+                notification.textContent = message;
+                
+                document.body.appendChild(notification);
+                setTimeout(() => notification.remove(), 3000);
+            }
+
+            // 搜尋歷史對話
+            searchHistory(query) {
+                const results = this.conversations.filter(msg => 
+                    msg.content.toLowerCase().includes(query.toLowerCase())
+                );
+                return results;
+            }
+
+            // 獲取對話摘要
+            getSessionSummary() {
+                const messages = this.getSessionMessages();
+                if (messages.length === 0) return "No messages in current session";
+                
+                const userQuestions = messages
+                    .filter(m => m.role === 'user')
+                    .map(m => m.content.substring(0, 50))
+                    .slice(-3);
+                
+                return `Recent topics: ${userQuestions.join(', ')}`;
+            }
+        }
+
+        // ===== 初始化對話記憶 =====
+        const conversationMemory = new ConversationMemory();
+
+        // ===== API 設定 =====
+        const API_URL = 'http://localhost:8000';
+
+        // ===== 原有功能整合記憶系統 =====
+        
+        // 載入健康狀態
+        async function loadHealth() {
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                
+                document.getElementById('docCount').textContent = data.documents_count || 0;
+                document.getElementById('chunkCount').textContent = data.vectors_count || 0;
+            } catch (error) {
+                console.error('Error loading health:', error);
+            }
+        }
+
+        // 載入文檔列表
+        async function loadDocuments() {
+            try {
+                const response = await fetch(`${API_URL}/documents`);
+                const documents = await response.json();
+                
+                const listEl = document.getElementById('documentList');
+                if (documents.length === 0) {
+                    listEl.innerHTML = '<p style="color: #9ca3af; text-align: center;">No documents uploaded</p>';
+                } else {
+                    listEl.innerHTML = documents.map(doc => `
+                        <div class="document-item">
+                            <div>
+                                <div style="font-weight: 600;">📄 ${doc.filename}</div>
+                                <div style="font-size: 12px; color: #9ca3af;">
+                                    ${doc.chunks} chunks • ${(doc.file_size / 1024).toFixed(1)} KB
+                                </div>
+                            </div>
+                            <span style="padding: 4px 8px; background: ${doc.status === 'indexed' ? '#10b981' : '#fbbf24'}; 
+                                       color: white; border-radius: 6px; font-size: 12px;">
+                                ${doc.status}
+                            </span>
+                        </div>
+                    `).join('');
+                }
+                
+                loadHealth();
+            } catch (error) {
+                console.error('Error loading documents:', error);
+            }
+        }
+
+        // 處理查詢提交 - 整合記憶系統
+        document.getElementById('queryForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const input = document.getElementById('queryInput');
+            const query = input.value.trim();
+            
+            if (!query) return;
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const chatContainer = document.getElementById('chatContainer');
+            
+            // 保存用戶訊息到記憶
+            conversationMemory.addMessage('user', query);
+            
+            // 顯示用戶訊息
+            chatContainer.innerHTML += `
+                <div class="user-message message">
+                    <strong>👤 You:</strong>
+                    <p>${query}</p>
+                </div>
+            `;
+            
+            // 清空輸入框並禁用按鈕
+            input.value = '';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Thinking...';
+            
+            try {
+                // 獲取對話上下文
+                const context = conversationMemory.getContextForAPI();
+                
+                // 發送請求，包含上下文
+                const response = await fetch(`${API_URL}/query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: query,
+                        context: context, // 傳送對話歷史
+                        max_results: 5,
+                        session_id: conversationMemory.currentSession
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // 保存助理回應到記憶
+                conversationMemory.addMessage('assistant', data.answer, {
+                    sources: data.sources ? data.sources.length : 0,
+                    model: data.model
+                });
+                
+                // 顯示助理回應
+                chatContainer.innerHTML += `
+                    <div class="assistant-message message">
+                        <strong>🤖 Assistant:</strong>
+                        <p>${data.answer}</p>
+                        ${data.sources && data.sources.length > 0 ? `
+                            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+                                <small style="color: #6b7280;">
+                                    📚 Sources: ${data.sources.length} relevant documents found
+                                    | 🧠 Using context from last ${conversationMemory.getRecentContext().length} messages
+                                </small>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                // 滾動到底部
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                chatContainer.innerHTML += `
+                    <div class="assistant-message message">
+                        <strong>🤖 Assistant:</strong>
+                        <p style="color: #ef4444;">Sorry, an error occurred. Please try again.</p>
+                    </div>
+                `;
+                
+                // 記錄錯誤
+                conversationMemory.addMessage('assistant', 'Error: ' + error.message, {error: true});
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Send';
+                
+                // 更新統計
+                conversationMemory.updateStats();
+            }
+        });
+
+        // 載入歷史對話（如果有）
+        function loadConversationHistory() {
+            const sessionMessages = conversationMemory.getSessionMessages();
+            if (sessionMessages.length > 0) {
+                const chatContainer = document.getElementById('chatContainer');
+                
+                // 添加系統訊息
+                chatContainer.innerHTML = `
+                    <div class="system-message">
+                        📚 Loaded ${sessionMessages.length} messages from previous session
+                    </div>
+                `;
+                
+                // 顯示歷史訊息
+                sessionMessages.forEach(msg => {
+                    if (msg.role === 'user') {
+                        chatContainer.innerHTML += `
+                            <div class="user-message message">
+                                <strong>👤 You:</strong>
+                                <p>${msg.content}</p>
+                            </div>
+                        `;
+                    } else if (msg.role === 'assistant') {
+                        chatContainer.innerHTML += `
+                            <div class="assistant-message message">
+                                <strong>🤖 Assistant:</strong>
+                                <p>${msg.content}</p>
+                            </div>
+                        `;
+                    }
+                });
+                
+                // 滾動到底部
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+        }
+
+        // 頁面載入時初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadHealth();
+            loadDocuments();
+            loadConversationHistory();
+            conversationMemory.updateStats();
+            
+            // 每 30 秒自動儲存
+            setInterval(() => {
+                conversationMemory.saveToStorage();
+                console.log('💾 Auto-saved conversation');
+            }, 30000);
+        });
+
+        // 頁面關閉前儲存
+        window.addEventListener('beforeunload', () => {
+            conversationMemory.saveToStorage();
+        });
+
+        // 自動刷新文檔列表
+        setInterval(loadDocuments, 30000);
+
+        // 鍵盤快捷鍵
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + K: 清空輸入
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                document.getElementById('queryInput').value = '';
+                document.getElementById('queryInput').focus();
+            }
+            
+            // Ctrl/Cmd + N: 新對話
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                e.preventDefault();
+                conversationMemory.newSession();
+            }
+        });
+    </script>
+</body>
+</html>

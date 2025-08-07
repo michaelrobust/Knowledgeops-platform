@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📘 KnowledgeOps Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            height: 100vh;
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+
+        .main-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .status-card {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background: #4CAF50;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .upload-section {
+            margin-bottom: 25px;
+        }
+
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: #4facfe;
+            background: #f0f8ff;
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #4facfe;
+            background: #e3f2fd;
+            transform: scale(1.02);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #4facfe;
+        }
+
+        .document-list {
+            margin-top: 20px;
+        }
+
+        .document-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .document-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            animation: fadeInUp 0.3s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            text-align: right;
+        }
+
+        .message.assistant {
+            text-align: left;
+        }
+
+        .message-content {
+            display: inline-block;
+            max-width: 70%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-bottom-left-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .chat-input-container {
+            padding: 25px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .chat-input-form {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .chat-input:focus {
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .send-button {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 80px;
+        }
+
+        .send-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .send-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading-indicator {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .loading-indicator.show {
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4facfe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .sidebar h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            color: #495057;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+            transform: translateY(-1px);
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 50px 20px;
+            color: #666;
+        }
+
+        .welcome-message h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .feature-list {
+            list-style: none;
+            margin-top: 20px;
+        }
+
+        .feature-list li {
+            padding: 8px 0;
+            color: #666;
+        }
+
+        .feature-list li:before {
+            content: "✨ ";
+            margin-right: 8px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.7);
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #4facfe;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+                height: 100vh;
+                padding: 10px;
+                gap: 10px;
+            }
+            
+            .sidebar {
+                order: 2;
+                max-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- System Status -->
+            <div class="status-card">
+                <div style="margin-bottom: 10px;">
+                    <span class="status-indicator status-online"></span>
+                    <strong>System Status: Online</strong>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="docCount">0</div>
+                        <div class="stat-label">Documents</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="queryCount">0</div>
+                        <div class="stat-label">Queries</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="vectorCount">0</div>
+                        <div class="stat-label">Vectors</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="tokenUsage">0</div>
+                        <div class="stat-label">Token Usage</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Upload Area -->
+            <div class="upload-section">
+                <h3>📄 Document Management</h3>
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📁</div>
+                    <div><strong>Click or Drag to Upload Files</strong></div>
+                    <div style="font-size: 12px; color: #666; margin-top: 8px;">
+                        Support PDF, DOCX formats
+                    </div>
+                </div>
+                <input type="file" id="fileInput" class="file-input" accept=".pdf,.docx" multiple>
+                
+                <div class="document-list">
+                    <h4 style="margin: 15px 0 10px 0; font-size: 14px; color: #666;">Uploaded Documents</h4>
+                    <div id="documentList">
+                        <!-- Document list will be generated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <h1>🤖 KnowledgeOps AI Assistant</h1>
+                <p>RAG-powered Intelligent Knowledge Q&A Platform</p>
+            </div>
+
+            <!-- Chat Container -->
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="welcome-message">
+                        <h3>👋 Welcome to KnowledgeOps Platform!</h3>
+                        <p>Upload your documents and start intelligent Q&A</p>
+                        <ul class="feature-list">
+                            <li>Intelligent document parsing & vectorization</li>
+                            <li>Semantic search & RAG Q&A</li>
+                            <li>Multi-model routing & cost optimization</li>
+                            <li>Real-time query results & source tracking</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="loading-indicator" id="loadingIndicator">
+                    <div class="spinner"></div>
+                    Thinking...
+                </div>
+
+                <!-- Input Area -->
+                <div class="chat-input-container">
+                    <form class="chat-input-form" id="chatForm">
+                        <input 
+                            type="text" 
+                            class="chat-input" 
+                            id="chatInput" 
+                            placeholder="Enter your question..." 
+                            autocomplete="off"
+                        >
+                        <button type="submit" class="send-button" id="sendButton">
+                            Send 🚀
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let messageHistory = [];
+        let documentList = [];
+        let queryCount = 0;
+        
+        // API base URL (adjust according to your backend)
+        const API_BASE = 'http://localhost:8000';
+
+        // DOM elements
+        const chatMessages = document.getElementById('chatMessages');
+        const chatForm = document.getElementById('chatForm');
+        const chatInput = document.getElementById('chatInput');
+        const sendButton = document.getElementById('sendButton');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.querySelector('.upload-area');
+        const documentListEl = document.getElementById('documentList');
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSystemStatus();
+            loadDocumentList();
+            
+            // Drag and drop upload events
+            setupDragAndDrop();
+            
+            // Chat form submission
+            chatForm.addEventListener('submit', handleChatSubmit);
+            
+            // File selection event
+            fileInput.addEventListener('change', handleFileUpload);
+        });
+
+        // Setup drag and drop
+        function setupDragAndDrop() {
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                handleFiles(files);
+            });
+        }
+
+        // Handle chat submission
+        async function handleChatSubmit(e) {
+            e.preventDefault();
+            
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            // Clear input and disable button
+            chatInput.value = '';
+            sendButton.disabled = true;
+            
+            // Add user message
+            addMessage('user', message);
+            
+            // Show loading indicator
+            showLoading();
+            
+            try {
+                // Send request to backend
+                const response = await fetch(`${API_BASE}/query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: message,
+                        max_results: 5
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Add assistant response
+                addMessage('assistant', data.answer, data.sources);
+                
+                // Update statistics
+                queryCount++;
+                updateStats();
+                
+            } catch (error) {
+                console.error('Query error:', error);
+                addMessage('assistant', 'Sorry, an error occurred during query. Please check network connection or contact administrator.');
+            } finally {
+                hideLoading();
+                sendButton.disabled = false;
+                chatInput.focus();
+            }
+        }
+
+        // Add message to chat
+        function addMessage(sender, content, sources = null) {
+            // Remove welcome message
+            const welcomeMessage = document.querySelector('.welcome-message');
+            if (welcomeMessage) {
+                welcomeMessage.remove();
+            }
+
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${sender}`;
+            
+            let messageContent = `
+                <div class="message-content">
+                    ${content}
+                    ${sources ? `
+                        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; font-size: 12px; color: #666;">
+                            <strong>Sources:</strong><br>
+                            ${sources.map(source => `📄 ${source.metadata?.filename || 'Unknown document'} (Page ${source.metadata?.page || 'N/A'})`).join('<br>')}
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="message-time">${new Date().toLocaleTimeString()}</div>
+            `;
+            
+            messageEl.innerHTML = messageContent;
+            chatMessages.appendChild(messageEl);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Save to history
+            messageHistory.push({
+                sender,
+                content,
+                sources,
+                timestamp: new Date()
+            });
+        }
+
+        // Show/hide loading indicator
+        function showLoading() {
+            loadingIndicator.classList.add('show');
+        }
+
+        function hideLoading() {
+            loadingIndicator.classList.remove('show');
+        }
+
+        // Handle file upload
+        function handleFileUpload(e) {
+            handleFiles(e.target.files);
+        }
+
+        // Handle files
+        async function handleFiles(files) {
+            for (let file of files) {
+                if (file.type === 'application/pdf' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                    await uploadFile(file);
+                } else {
+                    alert(`Unsupported file format: ${file.name}`);
+                }
+            }
+        }
+
+        // Upload file
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showLoading();
+                
+                const response = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Upload failed: ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                // Update document list
+                loadDocumentList();
+                loadSystemStatus();
+                
+                addMessage('assistant', `📄 Document "${file.name}" uploaded successfully! Processed ${result.chunks_created || 0} text chunks.`);
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                addMessage('assistant', `Document upload failed: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Load system status
+        async function loadSystemStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                if (response.ok) {
+                    const data = await response.json();
+                    updateStats(data);
+                }
+            } catch (error) {
+                console.error('Cannot load system status:', error);
+            }
+        }
+
+        // Load document list
+        async function loadDocumentList() {
+            try {
+                const response = await fetch(`${API_BASE}/documents`);
+                if (response.ok) {
+                    const documents = await response.json();
+                    displayDocumentList(documents);
+                }
+            } catch (error) {
+                console.error('Cannot load document list:', error);
+            }
+        }
+
+        // Display document list
+        function displayDocumentList(documents) {
+            documentListEl.innerHTML = '';
+            
+            if (documents.length === 0) {
+                documentListEl.innerHTML = '<div style="text-align: center; color: #666; font-size: 12px;">No documents uploaded yet</div>';
+                return;
+            }
+
+            documents.forEach(doc => {
+                const docEl = document.createElement('div');
+                docEl.className = 'document-item';
+                docEl.innerHTML = `
+                    <div>
+                        <div style="font-weight: 500; font-size: 13px;">${doc.filename}</div>
+                        <div style="font-size: 11px; color: #666;">${doc.chunks || 0} chunks</div>
+                    </div>
+                    <button class="btn-secondary" onclick="deleteDocument('${doc.id}')">Delete</button>
+                `;
+                documentListEl.appendChild(docEl);
+            });
+        }
+
+        // Delete document
+        async function deleteDocument(docId) {
+            if (!confirm('Are you sure you want to delete this document?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/documents/${docId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    loadDocumentList();
+                    loadSystemStatus();
+                    addMessage('assistant', 'Document deleted successfully.');
+                }
+            } catch (error) {
+                console.error('Delete document error:', error);
+                addMessage('assistant', 'Error occurred while deleting document.');
+            }
+        }
+
+        // Update statistics
+        function updateStats(data = null) {
+            if (data) {
+                document.getElementById('docCount').textContent = data.documents_count || 0;
+                document.getElementById('vectorCount').textContent = data.vectors_count || 0;
+                document.getElementById('tokenUsage').textContent = data.total_tokens || 0;
+            }
+            document.getElementById('queryCount').textContent = queryCount;
+        }
+
+        // Keyboard shortcuts
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                chatForm.dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>
